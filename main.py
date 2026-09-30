@@ -5,16 +5,23 @@ main.py - Home printing system backend.
 Run with:
     python3 main.py
 
-Environment variables:
+Environment variables (also read from a .env file next to this script;
+real environment variables take precedence):
     PRINTER_NAME   CUPS queue name to print to (required, see SETUP.md)
     HOST           Bind address (default: 0.0.0.0)
     PORT           Bind port (default: 5000)
+    HOME_URL       Target of the "Home" button in the top bar (optional;
+                   the button is hidden when unset)
+    STYLES_URL     Origin of the milessic-themes server, e.g.
+                   http://mbs.local:9312 (optional; the page falls back to
+                   unstyled-but-working when unset or unreachable)
 
 Requires a printer already added to CUPS (see SETUP.md) and the following
 pip packages: flask, pypdf, Pillow, pycups.
 """
 
 import base64
+import html
 import json
 import os
 import subprocess
@@ -31,6 +38,32 @@ from users import verify_password
 # ---------------------------------------------------------------------------
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+
+
+def _load_dotenv(path: str) -> None:
+    """Minimal .env reader (KEY=VALUE lines, # comments, optional quotes).
+    Variables already set in the real environment are left untouched."""
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            lines = f.readlines()
+    except FileNotFoundError:
+        return
+    for line in lines:
+        line = line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        key, _, value = line.partition("=")
+        key = key.strip()
+        if key.startswith("export "):
+            key = key[len("export "):].strip()
+        value = value.strip()
+        if len(value) >= 2 and value[0] == value[-1] and value[0] in "\"'":
+            value = value[1:-1]
+        os.environ.setdefault(key, value)
+
+
+_load_dotenv(os.path.join(BASE_DIR, ".env"))
+
 UPLOAD_FOLDER = os.path.join(BASE_DIR, "uploads")
 PROCESSED_FOLDER = os.path.join(BASE_DIR, "uploads", "processed")
 META_FILE = os.path.join(BASE_DIR, "uploads_meta.json")
@@ -41,6 +74,16 @@ if not PRINTER_NAME:
         "PRINTER_NAME environment variable must be set to your CUPS queue "
         "name (see SETUP.md)."
     )
+
+HOME_URL = os.environ.get("HOME_URL", "").strip()
+
+# milessic-themes (see the manifesto on the themes server). Version is pinned
+# so browsers can cache the bundle; bump it deliberately after checking the
+# gallery. The page starts on STYLES_THEME; users switch themes in the UI
+# (themes.js stores their choice in the browser's localStorage).
+STYLES_URL = os.environ.get("STYLES_URL", "").strip().rstrip("/")
+STYLES_THEME = "system"
+STYLES_VERSION = "1.0.0"
 
 ALLOWED_EXTENSIONS = {".pdf", ".png", ".jpg", ".jpeg", ".txt"}
 MAX_CONTENT_LENGTH = 64 * 1024 * 1024  # 64 MB
@@ -148,9 +191,27 @@ def handle_unexpected_error(exc):
 # Routes: app shell + auth check
 # ---------------------------------------------------------------------------
 
+def _theme_head_tags() -> str:
+    """Theme bundle + the themes.js helper (theme picker, restores the
+    user's stored theme). The helper is loaded without defer on purpose so
+    it re-applies the stored theme as early as possible."""
+    if not STYLES_URL:
+        return ""
+    css = f"{STYLES_URL}/css/bundle/{STYLES_THEME}.css?v={STYLES_VERSION}"
+    js = f"{STYLES_URL}/js/themes.js?v={STYLES_VERSION}"
+    return (
+        f'<link rel="stylesheet" data-milessic-theme href="{html.escape(css)}">\n'
+        f'<script src="{html.escape(js)}"></script>'
+    )
+
+
 @app.route("/")
 def index():
-    return send_file(os.path.join(BASE_DIR, "index.html"))
+    with open(os.path.join(BASE_DIR, "index.html"), "r", encoding="utf-8") as f:
+        page = f.read()
+    page = page.replace("{{THEME_HEAD}}", _theme_head_tags())
+    page = page.replace("{{HOME_URL}}", html.escape(HOME_URL))
+    return Response(page, mimetype="text/html")
 
 
 @app.route("/api/login", methods=["POST"])

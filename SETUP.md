@@ -82,6 +82,21 @@ python3 main.py
 By default it listens on `0.0.0.0:5000`, so from another device on your
 LAN go to `http://<server-ip>:5000`.
 
+### Optional settings (`.env`)
+
+`main.py` also reads a `.env` file next to it (see `.env.example`); real
+environment variables win over it.
+
+- `HOME_URL` — where the **Home** button in the top bar links to. The
+  button is hidden when this is empty.
+- `STYLES_URL` — origin of the milessic-themes server, e.g.
+  `http://mbs.local:9312`. The page loads the pinned theme bundle and the
+  `themes.js` helper from there (see its `/manifesto`). It starts on the
+  `system` theme; each user can pick another one with the **Theme** button
+  in the top bar, and the choice is remembered per browser. If it's unset
+  or the server is down, the app still works, just unstyled (and without
+  the Theme button).
+
 ### Run it as a systemd service (optional, recommended)
 
 `/etc/systemd/system/print-system.service`:

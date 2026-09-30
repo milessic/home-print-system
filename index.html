@@ -1,314 +1,168 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="system">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🖨️</text></svg>">
 
 <title>Home Print</title>
+<!-- milessic-themes bundle + helper, rendered by main.py from STYLES_URL (see SETUP.md).
+     App styles below must load AFTER it and use only the public tokens. -->
+{{THEME_HEAD}}
 <style>
-  :root {
-    --bg: #f4f5f7;
-    --panel: #ffffff;
-    --border: #e1e4e8;
-    --text: #1f2328;
-    --muted: #6b7280;
-    --accent: #2563eb;
-    --accent-hover: #1d4ed8;
-    --green: #16a34a;
-    --yellow: #d97706;
-    --red: #dc2626;
-    --radius: 10px;
+  /* App-only widgets. Tokens only (milessic-themes manifesto §5/§6). */
+  .print-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 360px) minmax(0, 1fr);
+    gap: 1rem;
+    align-items: start;
   }
-  * { box-sizing: border-box; }
-  body {
-    margin: 0;
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-    background: var(--bg);
-    color: var(--text);
-  }
-
-  /* ---------- Top bar / login ---------- */
-  header {
-    background: var(--panel);
-    border-bottom: 1px solid var(--border);
-    padding: 10px 20px;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 12px;
-    flex-wrap: wrap;
-  }
-  header h1 {
-    font-size: 18px;
-    margin: 0;
-    white-space: nowrap;
-  }
-  #loginForm {
-    display: flex;
-    gap: 8px;
-    align-items: center;
-  }
-  #loginForm input {
-    padding: 7px 10px;
-    border: 1px solid var(--border);
-    border-radius: 6px;
-    font-size: 14px;
-    width: 130px;
-  }
-  #loginForm button, .btn {
-    padding: 7px 14px;
-    border: none;
-    border-radius: 6px;
-    background: var(--accent);
-    color: white;
-    font-size: 14px;
-    cursor: pointer;
-  }
-  #loginForm button:hover, .btn:hover { background: var(--accent-hover); }
-  #loginError { color: var(--red); font-size: 13px; }
-  #userBar { display: flex; align-items: center; gap: 10px; font-size: 14px; color: var(--muted); }
-  #userBar button { background: transparent; color: var(--muted); border: 1px solid var(--border); }
-  #userBar button:hover { background: #f0f0f0; }
-
-  #statusPill {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    font-size: 13px;
-    color: var(--muted);
-    border: 1px solid var(--border);
-    padding: 5px 10px;
-    border-radius: 20px;
-    background: var(--panel);
-  }
-  .dot {
-    width: 10px; height: 10px;
-    border-radius: 50%;
-    background: #999;
-    flex: none;
-  }
-  .dot.green { background: var(--green); }
-  .dot.yellow { background: var(--yellow); }
-  .dot.red { background: var(--red); }
-
-  /* ---------- Layout ---------- */
-  main {
-    display: none;
-    max-width: 1100px;
-    margin: 24px auto;
-    padding: 0 20px;
-    gap: 20px;
-    grid-template-columns: 320px 1fr;
-  }
-  main.visible { display: grid; }
-
-  .panel {
-    background: var(--panel);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    padding: 16px;
+  .print-layout > .card { margin-bottom: 0; }
+  @media (max-width: 780px) {
+    .print-layout { grid-template-columns: minmax(0, 1fr); }
   }
 
   /* ---------- Left column: upload + file list + controls ---------- */
-  #dropzone {
-    border: 2px dashed var(--border);
-    border-radius: var(--radius);
-    padding: 28px 12px;
+  .dropzone {
+    border: 2px dashed var(--line-strong);
+    border-radius: calc(var(--radius) / 2);
+    padding: 1.75rem .75rem;
     text-align: center;
-    color: var(--muted);
+    color: var(--ink-2);
     cursor: pointer;
-    font-size: 14px;
-    transition: border-color .15s, background .15s;
   }
-  #dropzone.dragover {
+  .dropzone.dragover {
     border-color: var(--accent);
-    background: #eef2ff;
-    color: var(--accent);
+    background: var(--surface-2);
   }
   #fileInput { display: none; }
 
-  #fileFilters { margin-top: 14px; display: flex; flex-direction: column; gap: 8px; }
-  #fileFilters .filter-row { display: flex; align-items: center; gap: 8px; }
-  #fileFilters label { font-size: 12px; color: var(--muted); flex: none; }
-  #fileFilters select, #fileFilters input[type=date] {
-    padding: 5px 7px;
-    border: 1px solid var(--border);
-    border-radius: 6px;
-    font-size: 12px;
-    flex: 1;
-    min-width: 0;
-  }
+  .file-list-wrap { max-height: 300px; overflow-y: auto; }
+  .file-name { overflow-wrap: anywhere; }
+  .file-stored { overflow-wrap: anywhere; }
+  table.data tbody tr { cursor: pointer; }
 
-  #fileList { margin-top: 10px; display: flex; flex-direction: column; gap: 6px; max-height: 260px; overflow-y: auto; }
-  .file-item {
-    padding: 8px 10px;
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    font-size: 13px;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 8px;
-  }
-  .file-item:hover { background: #f8f9fb; }
-  .file-item.selected { border-color: var(--accent); background: #eef2ff; }
-  .file-item .info { overflow: hidden; flex: 1; }
-  .file-item .name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .file-item .stored { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11px; color: var(--muted); }
-  .file-item .meta-right { display: flex; align-items: center; gap: 6px; flex: none; }
-  .file-item .type { color: var(--muted); flex: none; font-size: 12px; }
-  .badge { font-size: 11px; padding: 2px 6px; border-radius: 10px; flex: none; }
-  .badge.processed { background: #dcfce7; color: var(--green); }
-  .badge.unprocessed { background: #f3f4f6; color: var(--muted); }
-  .icon-btn {
-    border: 1px solid var(--border);
-    background: var(--panel);
-    border-radius: 6px;
-    width: 26px;
-    height: 26px;
-    font-size: 13px;
-    cursor: pointer;
-    flex: none;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
-  .icon-btn:hover { background: #f0f0f0; }
-  .icon-btn.danger:hover { background: #fee2e2; border-color: var(--red); }
+  .rotate-row { justify-content: space-between; }
 
-  .controls { margin-top: 18px; display: flex; flex-direction: column; gap: 12px; }
-  .control-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
-  .control-row label { font-size: 13px; color: var(--muted); }
-  select, input[type=number] {
-    padding: 6px 8px;
-    border: 1px solid var(--border);
-    border-radius: 6px;
-    font-size: 13px;
-  }
-  .rotate-buttons { display: flex; gap: 6px; }
-  .rotate-buttons button {
-    width: 34px; height: 34px;
-    border: 1px solid var(--border);
-    background: var(--panel);
-    border-radius: 6px;
-    cursor: pointer;
-    font-size: 16px;
-  }
-  .rotate-buttons button:hover { background: #f0f0f0; }
-
-  #printBtn {
-    margin-top: 6px;
-    padding: 11px;
-    font-size: 15px;
-    font-weight: 600;
-    border-radius: 8px;
-  }
-  #printBtn:disabled { opacity: .5; cursor: not-allowed; }
-  #printMessage { font-size: 13px; margin-top: 4px; min-height: 16px; }
-  #printMessage.ok { color: var(--green); }
-  #printMessage.err { color: var(--red); }
-
-  /* ---------- Right column: preview ---------- */
-  #previewPanel {
+  .preview-card {
     display: flex;
     align-items: center;
     justify-content: center;
     min-height: 520px;
+    overflow: hidden;
   }
-  #previewEmpty { color: var(--muted); font-size: 14px; }
-  #previewFrame, #previewImage {
+  .preview-media {
     max-width: 100%;
     max-height: 640px;
-    border: 1px solid var(--border);
-    background: white;
+    border: 1px solid var(--line);
+    background: var(--surface);
     transition: transform .15s ease;
   }
-  #previewFrame { width: 100%; height: 640px; }
-
-  @media (max-width: 780px) {
-    main { grid-template-columns: 1fr; }
-  }
+  iframe.preview-media { width: 100%; height: 640px; }
 </style>
 </head>
 <body>
 
-<header>
-  <h1>🖨️ Home Print</h1>
-
-  <form id="loginForm">
-    <input type="text" id="loginUser" placeholder="username" autocomplete="username" required>
-    <input type="password" id="loginPass" placeholder="password" autocomplete="current-password" required>
-    <button type="submit">Log in</button>
-    <span id="loginError"></span>
-  </form>
-
-  <div id="userBar" style="display:none;">
-    <div id="statusPill"><span class="dot" id="statusDot"></span><span id="statusText">checking…</span></div>
-    <span id="whoami"></span>
-    <button id="logoutBtn">Log out</button>
+<header class="topbar">
+  <a class="brand" href="/">Home Print</a>
+  <nav class="nav">
+    <a href="/" class="active">Print</a>
+  </nav>
+  <div class="topbar-end">
+    <span id="statusBadge" class="badge tone-neutral" style="display:none;" title="">checking…</span>
+    <span id="whoami" class="muted"></span>
+    <a id="homeBtn" class="btn ghost small" href="{{HOME_URL}}">Home</a>
+    <button id="themeBtn" class="btn ghost small" type="button" aria-expanded="false" aria-controls="themeCard" style="display:none;">Theme</button>
+    <button id="logoutBtn" class="btn ghost small" type="button" style="display:none;">Log out</button>
   </div>
 </header>
 
-<main id="app">
-  <section class="panel">
-    <div id="dropzone">
-      Drag & drop a file here<br>or click to browse<br>
-      <small>(PDF, PNG, JPG, TXT)</small>
+<main class="container">
+  <section class="card" id="themeCard" style="display:none;">
+    <div class="section-head">
+      <h2>Theme</h2>
+      <button id="themeCloseBtn" class="btn ghost small" type="button">Close</button>
     </div>
-    <input type="file" id="fileInput" accept=".pdf,.png,.jpg,.jpeg,.txt">
+    <div id="themePicker"><span class="muted">Loading themes…</span></div>
+  </section>
 
-    <div id="fileFilters">
-      <div class="filter-row">
-        <label for="filterProcessed">Status</label>
-        <select id="filterProcessed">
-          <option value="all">All</option>
-          <option value="unprocessed">Not printed</option>
-          <option value="processed">Printed</option>
-        </select>
+  <section class="card narrow" id="loginCard" style="display:none;">
+    <h2>Log in</h2>
+    <form id="loginForm" class="stack">
+      <label>Username
+        <input type="text" id="loginUser" autocomplete="username" required>
+      </label>
+      <label>Password
+        <input type="password" id="loginPass" autocomplete="current-password" required>
+      </label>
+      <div class="flash error" id="loginError" role="alert" style="display:none;"></div>
+      <div class="toolbar"><button type="submit" class="btn primary">Log in</button></div>
+    </form>
+  </section>
+
+  <div class="print-layout" id="app" style="display:none;">
+    <section class="card stack">
+      <div class="dropzone" id="dropzone" role="button" tabindex="0">
+        Drag &amp; drop a file here<br>or click to browse<br>
+        <span class="small muted">(PDF, PNG, JPG, TXT)</span>
       </div>
-      <div class="filter-row">
-        <label for="filterFrom">From</label>
-        <input type="date" id="filterFrom">
-        <label for="filterTo">To</label>
-        <input type="date" id="filterTo">
+      <input type="file" id="fileInput" accept=".pdf,.png,.jpg,.jpeg,.txt">
+
+      <div class="filters">
+        <label>Status
+          <select id="filterProcessed">
+            <option value="all">All</option>
+            <option value="unprocessed">Not printed</option>
+            <option value="processed">Printed</option>
+          </select>
+        </label>
+        <label>From
+          <input type="date" id="filterFrom">
+        </label>
+        <label>To
+          <input type="date" id="filterTo">
+        </label>
       </div>
-    </div>
 
-    <div id="fileList"></div>
+      <div class="file-list-wrap scroll-x">
+        <table class="data selectable">
+          <thead>
+            <tr><th>File</th><th>Status</th><th class="actions"><span class="muted">Actions</span></th></tr>
+          </thead>
+          <tbody id="fileList"></tbody>
+        </table>
+      </div>
 
-    <div class="controls">
-      <div class="control-row">
-        <label>Rotate</label>
-        <div class="rotate-buttons">
-          <button id="rotateLeft" type="button" title="Rotate left">⟲</button>
-          <button id="rotateRight" type="button" title="Rotate right">⟳</button>
+      <div class="row rotate-row">
+        <span>Rotate</span>
+        <div class="row">
+          <button id="rotateLeft" class="btn small" type="button" title="Rotate left" aria-label="Rotate left">⟲</button>
+          <button id="rotateRight" class="btn small" type="button" title="Rotate right" aria-label="Rotate right">⟳</button>
         </div>
       </div>
-      <div class="control-row">
-        <label>Paper size</label>
-        <select id="paperSelect">
-          <option value="A4">A4</option>
-          <option value="Letter">Letter</option>
-          <option value="Legal">Legal</option>
-        </select>
-      </div>
-      <div class="control-row">
-        <label>Copies</label>
-        <input type="number" id="copiesInput" value="1" min="1" max="50">
+      <div class="inline-form">
+        <label>Paper size
+          <select id="paperSelect">
+            <option value="A4">A4</option>
+            <option value="Letter">Letter</option>
+            <option value="Legal">Legal</option>
+          </select>
+        </label>
+        <label>Copies
+          <input type="number" id="copiesInput" value="1" min="1" max="50">
+        </label>
       </div>
 
-      <button id="printBtn" class="btn" disabled>Print</button>
-      <div id="printMessage"></div>
-    </div>
-  </section>
+      <button id="printBtn" class="btn primary" type="button" disabled>Print</button>
+      <div id="printMessage" class="flash" role="status" style="display:none;"></div>
+    </section>
 
-  <section class="panel" id="previewPanel">
-    <div id="previewEmpty">Upload a file to preview it here.</div>
-    <iframe id="previewFrame" style="display:none;"></iframe>
-    <img id="previewImage" style="display:none;">
-  </section>
+    <section class="card preview-card" id="previewPanel">
+      <div id="previewEmpty" class="muted">Upload a file to preview it here.</div>
+      <iframe id="previewFrame" class="preview-media" style="display:none;"></iframe>
+      <img id="previewImage" class="preview-media" alt="Preview" style="display:none;">
+    </section>
+  </div>
 </main>
 
 <script>
@@ -319,9 +173,10 @@
   const loginUser = document.getElementById("loginUser");
   const loginPass = document.getElementById("loginPass");
   const loginError = document.getElementById("loginError");
-  const userBar = document.getElementById("userBar");
+  const loginCard = document.getElementById("loginCard");
   const whoami = document.getElementById("whoami");
   const logoutBtn = document.getElementById("logoutBtn");
+  const homeBtn = document.getElementById("homeBtn");
   const app = document.getElementById("app");
 
   const dropzone = document.getElementById("dropzone");
@@ -342,8 +197,37 @@
   const previewFrame = document.getElementById("previewFrame");
   const previewImage = document.getElementById("previewImage");
 
-  const statusDot = document.getElementById("statusDot");
-  const statusText = document.getElementById("statusText");
+  const statusBadge = document.getElementById("statusBadge");
+
+  // HOME_URL is rendered in by main.py; hide the button when it isn't set.
+  if (!homeBtn.getAttribute("href")) homeBtn.style.display = "none";
+
+  // ---------- theme picker (milessic-themes helper) ----------
+  // Only offered when themes.js loaded (STYLES_URL set and server reachable).
+
+  const themeBtn = document.getElementById("themeBtn");
+  const themeCard = document.getElementById("themeCard");
+  const themeCloseBtn = document.getElementById("themeCloseBtn");
+  const themePicker = document.getElementById("themePicker");
+  let themePickerMounted = false;
+
+  function setThemeCardOpen(open) {
+    themeCard.style.display = open ? "" : "none";
+    themeBtn.setAttribute("aria-expanded", open ? "true" : "false");
+    if (open && !themePickerMounted) {
+      themePickerMounted = true;
+      window.MilessicThemes.mountPicker(themePicker).catch(() => {
+        themePickerMounted = false;
+        themePicker.textContent = "Could not load themes. Try again later.";
+      });
+    }
+  }
+
+  if (window.MilessicThemes) {
+    themeBtn.style.display = "";
+    themeBtn.addEventListener("click", () => setThemeCardOpen(themeCard.style.display === "none"));
+    themeCloseBtn.addEventListener("click", () => setThemeCardOpen(false));
+  }
 
   let files = [];          // {id, filename, type}
   let selectedFile = null; // one of the above
@@ -398,33 +282,48 @@
     return { token, username: data.username };
   }
 
+  function setLoginError(message) {
+    loginError.textContent = message || "";
+    loginError.style.display = message ? "" : "none";
+  }
+
+  // kind: "success" | "error" | "info"; empty text hides the message.
+  function setPrintMessage(kind, text) {
+    printMessage.className = "flash " + (kind || "info");
+    printMessage.textContent = text || "";
+    printMessage.style.display = text ? "" : "none";
+  }
+
   function showApp(username) {
-    loginForm.style.display = "none";
-    userBar.style.display = "flex";
+    loginCard.style.display = "none";
+    statusBadge.style.display = "";
+    logoutBtn.style.display = "";
     whoami.textContent = username;
-    app.classList.add("visible");
+    app.style.display = "";
     startStatusPolling();
     startFileListPolling();
   }
 
   function showLogin(message) {
-    loginForm.style.display = "flex";
-    userBar.style.display = "none";
-    app.classList.remove("visible");
+    loginCard.style.display = "";
+    statusBadge.style.display = "none";
+    logoutBtn.style.display = "none";
+    whoami.textContent = "";
+    app.style.display = "none";
     stopStatusPolling();
     stopFileListPolling();
-    if (message) loginError.textContent = message;
+    if (message) setLoginError(message);
   }
 
   loginForm.addEventListener("submit", async (e) => {
     e.preventDefault();
-    loginError.textContent = "";
+    setLoginError("");
     const u = loginUser.value.trim();
     const p = loginPass.value;
     if (!u || !p) return;
     const result = await tryLogin(u, p);
     if (result.error) {
-      loginError.textContent = result.error;
+      setLoginError(result.error);
       return;
     }
     localStorage.setItem(AUTH_KEY, result.token);
@@ -466,6 +365,9 @@
   // ---------- upload / drag & drop ----------
 
   dropzone.addEventListener("click", () => fileInput.click());
+  dropzone.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" || e.key === " ") { e.preventDefault(); fileInput.click(); }
+  });
 
   ["dragenter", "dragover"].forEach(evt =>
     dropzone.addEventListener(evt, (e) => {
@@ -489,7 +391,7 @@
   });
 
   async function uploadFile(file) {
-    printMessage.textContent = "";
+    setPrintMessage(null, "");
     const form = new FormData();
     form.append("file", file);
     try {
@@ -499,8 +401,7 @@
         body: form,
       });
       if (!res.ok) {
-        printMessage.className = "err";
-        printMessage.textContent = await extractError(res, "Upload failed");
+        setPrintMessage("error", await extractError(res, "Upload failed"));
         return;
       }
       const data = await res.json();
@@ -508,8 +409,7 @@
       renderFileList();
       selectFile(data);
     } catch (err) {
-      printMessage.className = "err";
-      printMessage.textContent = "Upload failed: " + err;
+      setPrintMessage("error", "Upload failed: " + err);
     }
   }
 
@@ -542,57 +442,50 @@
   function renderFileList() {
     fileListEl.innerHTML = "";
     files.filter(matchesFilters).forEach((f) => {
-      const el = document.createElement("div");
-      el.className = "file-item" + (selectedFile && selectedFile.id === f.id ? " selected" : "");
+      const tr = document.createElement("tr");
+      if (selectedFile && selectedFile.id === f.id) tr.className = "selected";
+      tr.addEventListener("click", () => selectFile(f));
 
-      const info = document.createElement("div");
-      info.className = "info";
-      info.addEventListener("click", () => selectFile(f));
-
+      const fileTd = document.createElement("td");
       const nameEl = document.createElement("div");
-      nameEl.className = "name";
+      nameEl.className = "file-name";
       nameEl.textContent = f.filename;
-      info.appendChild(nameEl);
+      fileTd.appendChild(nameEl);
 
-      if (f.stored_name) {
-        const storedEl = document.createElement("div");
-        storedEl.className = "stored";
-        storedEl.textContent = f.stored_name;
-        info.appendChild(storedEl);
-      }
+      const storedEl = document.createElement("div");
+      storedEl.className = "file-stored small muted";
+      storedEl.textContent = f.stored_name ? `${f.type} · ${f.stored_name}` : f.type;
+      fileTd.appendChild(storedEl);
+      tr.appendChild(fileTd);
 
-      const right = document.createElement("div");
-      right.className = "meta-right";
-
-      const typeEl = document.createElement("span");
-      typeEl.className = "type";
-      typeEl.textContent = f.type;
-      right.appendChild(typeEl);
-
+      const statusTd = document.createElement("td");
       const badge = document.createElement("span");
-      badge.className = "badge " + (f.processed ? "processed" : "unprocessed");
-      badge.textContent = f.processed ? "printed" : "not printed";
-      right.appendChild(badge);
+      badge.className = "badge " + (f.processed ? "tone-ok" : "tone-neutral");
+      badge.textContent = f.processed ? "Printed" : "Not printed";
+      statusTd.appendChild(badge);
+      tr.appendChild(statusTd);
+
+      const actionsTd = document.createElement("td");
+      actionsTd.className = "actions";
 
       const hideBtn = document.createElement("button");
-      hideBtn.className = "icon-btn";
+      hideBtn.className = "btn ghost small";
       hideBtn.type = "button";
       hideBtn.title = "Hide file";
-      hideBtn.textContent = "🙈";
+      hideBtn.textContent = "Hide";
       hideBtn.addEventListener("click", (e) => { e.stopPropagation(); hideFile(f); });
-      right.appendChild(hideBtn);
+      actionsTd.appendChild(hideBtn);
 
       const deleteBtn = document.createElement("button");
-      deleteBtn.className = "icon-btn danger";
+      deleteBtn.className = "btn danger small";
       deleteBtn.type = "button";
       deleteBtn.title = "Delete file";
-      deleteBtn.textContent = "🗑";
+      deleteBtn.textContent = "Delete";
       deleteBtn.addEventListener("click", (e) => { e.stopPropagation(); deleteFile(f); });
-      right.appendChild(deleteBtn);
+      actionsTd.appendChild(deleteBtn);
 
-      el.appendChild(info);
-      el.appendChild(right);
-      fileListEl.appendChild(el);
+      tr.appendChild(actionsTd);
+      fileListEl.appendChild(tr);
     });
   }
 
@@ -638,7 +531,7 @@
     selectedFile = f;
     rotation = 0;
     printBtn.disabled = !f;
-    printMessage.textContent = "";
+    setPrintMessage(null, "");
     renderFileList();
     renderPreview();
   }
@@ -684,8 +577,7 @@
   printBtn.addEventListener("click", async () => {
     if (!selectedFile) return;
     printBtn.disabled = true;
-    printMessage.className = "";
-    printMessage.textContent = "Sending to printer…";
+    setPrintMessage("info", "Sending to printer…");
 
     try {
       const res = await fetch("/api/print", {
@@ -699,16 +591,13 @@
         }),
       });
       if (!res.ok) {
-        printMessage.className = "err";
-        printMessage.textContent = await extractError(res, "Print failed");
+        setPrintMessage("error", await extractError(res, "Print failed"));
       } else {
         const data = await res.json();
-        printMessage.className = "ok";
-        printMessage.textContent = "Sent to printer (" + (data.job || "job submitted") + ")";
+        setPrintMessage("success", "Sent to printer (" + (data.job || "job submitted") + ")");
       }
     } catch (err) {
-      printMessage.className = "err";
-      printMessage.textContent = "Print failed: " + err;
+      setPrintMessage("error", "Print failed: " + err);
     } finally {
       printBtn.disabled = false;
     }
@@ -736,10 +625,13 @@
     }
   }
 
+  // Server colors -> milessic tone classes (always shown with the text label).
+  const STATUS_TONES = { green: "tone-ok", yellow: "tone-warn", red: "tone-fail" };
+
   function setStatus(color, message) {
-    statusDot.className = "dot " + (color || "");
-    statusText.textContent = message || "Unknown";
-    statusText.title = message || "";
+    statusBadge.className = "badge " + (STATUS_TONES[color] || "tone-neutral");
+    statusBadge.textContent = message || "Unknown";
+    statusBadge.title = message || "";
   }
 
   function startStatusPolling() {
