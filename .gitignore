@@ -216,3 +216,8 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# Home Print System runtime data (contains credentials/uploaded files)
+/users.json
+/uploads_meta.json
+/uploads/

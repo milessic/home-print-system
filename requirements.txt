@@ -1,0 +1,4 @@
+Flask>=3.0
+pypdf>=5.0
+Pillow>=10.0
+pycups>=2.0.1

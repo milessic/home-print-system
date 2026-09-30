@@ -1,0 +1,769 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🖨️</text></svg>">
+
+<title>Home Print</title>
+<style>
+  :root {
+    --bg: #f4f5f7;
+    --panel: #ffffff;
+    --border: #e1e4e8;
+    --text: #1f2328;
+    --muted: #6b7280;
+    --accent: #2563eb;
+    --accent-hover: #1d4ed8;
+    --green: #16a34a;
+    --yellow: #d97706;
+    --red: #dc2626;
+    --radius: 10px;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+  }
+
+  /* ---------- Top bar / login ---------- */
+  header {
+    background: var(--panel);
+    border-bottom: 1px solid var(--border);
+    padding: 10px 20px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+  header h1 {
+    font-size: 18px;
+    margin: 0;
+    white-space: nowrap;
+  }
+  #loginForm {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+  }
+  #loginForm input {
+    padding: 7px 10px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    font-size: 14px;
+    width: 130px;
+  }
+  #loginForm button, .btn {
+    padding: 7px 14px;
+    border: none;
+    border-radius: 6px;
+    background: var(--accent);
+    color: white;
+    font-size: 14px;
+    cursor: pointer;
+  }
+  #loginForm button:hover, .btn:hover { background: var(--accent-hover); }
+  #loginError { color: var(--red); font-size: 13px; }
+  #userBar { display: flex; align-items: center; gap: 10px; font-size: 14px; color: var(--muted); }
+  #userBar button { background: transparent; color: var(--muted); border: 1px solid var(--border); }
+  #userBar button:hover { background: #f0f0f0; }
+
+  #statusPill {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 13px;
+    color: var(--muted);
+    border: 1px solid var(--border);
+    padding: 5px 10px;
+    border-radius: 20px;
+    background: var(--panel);
+  }
+  .dot {
+    width: 10px; height: 10px;
+    border-radius: 50%;
+    background: #999;
+    flex: none;
+  }
+  .dot.green { background: var(--green); }
+  .dot.yellow { background: var(--yellow); }
+  .dot.red { background: var(--red); }
+
+  /* ---------- Layout ---------- */
+  main {
+    display: none;
+    max-width: 1100px;
+    margin: 24px auto;
+    padding: 0 20px;
+    gap: 20px;
+    grid-template-columns: 320px 1fr;
+  }
+  main.visible { display: grid; }
+
+  .panel {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 16px;
+  }
+
+  /* ---------- Left column: upload + file list + controls ---------- */
+  #dropzone {
+    border: 2px dashed var(--border);
+    border-radius: var(--radius);
+    padding: 28px 12px;
+    text-align: center;
+    color: var(--muted);
+    cursor: pointer;
+    font-size: 14px;
+    transition: border-color .15s, background .15s;
+  }
+  #dropzone.dragover {
+    border-color: var(--accent);
+    background: #eef2ff;
+    color: var(--accent);
+  }
+  #fileInput { display: none; }
+
+  #fileFilters { margin-top: 14px; display: flex; flex-direction: column; gap: 8px; }
+  #fileFilters .filter-row { display: flex; align-items: center; gap: 8px; }
+  #fileFilters label { font-size: 12px; color: var(--muted); flex: none; }
+  #fileFilters select, #fileFilters input[type=date] {
+    padding: 5px 7px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    font-size: 12px;
+    flex: 1;
+    min-width: 0;
+  }
+
+  #fileList { margin-top: 10px; display: flex; flex-direction: column; gap: 6px; max-height: 260px; overflow-y: auto; }
+  .file-item {
+    padding: 8px 10px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    font-size: 13px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+  }
+  .file-item:hover { background: #f8f9fb; }
+  .file-item.selected { border-color: var(--accent); background: #eef2ff; }
+  .file-item .info { overflow: hidden; flex: 1; }
+  .file-item .name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .file-item .stored { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11px; color: var(--muted); }
+  .file-item .meta-right { display: flex; align-items: center; gap: 6px; flex: none; }
+  .file-item .type { color: var(--muted); flex: none; font-size: 12px; }
+  .badge { font-size: 11px; padding: 2px 6px; border-radius: 10px; flex: none; }
+  .badge.processed { background: #dcfce7; color: var(--green); }
+  .badge.unprocessed { background: #f3f4f6; color: var(--muted); }
+  .icon-btn {
+    border: 1px solid var(--border);
+    background: var(--panel);
+    border-radius: 6px;
+    width: 26px;
+    height: 26px;
+    font-size: 13px;
+    cursor: pointer;
+    flex: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .icon-btn:hover { background: #f0f0f0; }
+  .icon-btn.danger:hover { background: #fee2e2; border-color: var(--red); }
+
+  .controls { margin-top: 18px; display: flex; flex-direction: column; gap: 12px; }
+  .control-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+  .control-row label { font-size: 13px; color: var(--muted); }
+  select, input[type=number] {
+    padding: 6px 8px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    font-size: 13px;
+  }
+  .rotate-buttons { display: flex; gap: 6px; }
+  .rotate-buttons button {
+    width: 34px; height: 34px;
+    border: 1px solid var(--border);
+    background: var(--panel);
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 16px;
+  }
+  .rotate-buttons button:hover { background: #f0f0f0; }
+
+  #printBtn {
+    margin-top: 6px;
+    padding: 11px;
+    font-size: 15px;
+    font-weight: 600;
+    border-radius: 8px;
+  }
+  #printBtn:disabled { opacity: .5; cursor: not-allowed; }
+  #printMessage { font-size: 13px; margin-top: 4px; min-height: 16px; }
+  #printMessage.ok { color: var(--green); }
+  #printMessage.err { color: var(--red); }
+
+  /* ---------- Right column: preview ---------- */
+  #previewPanel {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 520px;
+  }
+  #previewEmpty { color: var(--muted); font-size: 14px; }
+  #previewFrame, #previewImage {
+    max-width: 100%;
+    max-height: 640px;
+    border: 1px solid var(--border);
+    background: white;
+    transition: transform .15s ease;
+  }
+  #previewFrame { width: 100%; height: 640px; }
+
+  @media (max-width: 780px) {
+    main { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>🖨️ Home Print</h1>
+
+  <form id="loginForm">
+    <input type="text" id="loginUser" placeholder="username" autocomplete="username" required>
+    <input type="password" id="loginPass" placeholder="password" autocomplete="current-password" required>
+    <button type="submit">Log in</button>
+    <span id="loginError"></span>
+  </form>
+
+  <div id="userBar" style="display:none;">
+    <div id="statusPill"><span class="dot" id="statusDot"></span><span id="statusText">checking…</span></div>
+    <span id="whoami"></span>
+    <button id="logoutBtn">Log out</button>
+  </div>
+</header>
+
+<main id="app">
+  <section class="panel">
+    <div id="dropzone">
+      Drag & drop a file here<br>or click to browse<br>
+      <small>(PDF, PNG, JPG, TXT)</small>
+    </div>
+    <input type="file" id="fileInput" accept=".pdf,.png,.jpg,.jpeg,.txt">
+
+    <div id="fileFilters">
+      <div class="filter-row">
+        <label for="filterProcessed">Status</label>
+        <select id="filterProcessed">
+          <option value="all">All</option>
+          <option value="unprocessed">Not printed</option>
+          <option value="processed">Printed</option>
+        </select>
+      </div>
+      <div class="filter-row">
+        <label for="filterFrom">From</label>
+        <input type="date" id="filterFrom">
+        <label for="filterTo">To</label>
+        <input type="date" id="filterTo">
+      </div>
+    </div>
+
+    <div id="fileList"></div>
+
+    <div class="controls">
+      <div class="control-row">
+        <label>Rotate</label>
+        <div class="rotate-buttons">
+          <button id="rotateLeft" type="button" title="Rotate left">⟲</button>
+          <button id="rotateRight" type="button" title="Rotate right">⟳</button>
+        </div>
+      </div>
+      <div class="control-row">
+        <label>Paper size</label>
+        <select id="paperSelect">
+          <option value="A4">A4</option>
+          <option value="Letter">Letter</option>
+          <option value="Legal">Legal</option>
+        </select>
+      </div>
+      <div class="control-row">
+        <label>Copies</label>
+        <input type="number" id="copiesInput" value="1" min="1" max="50">
+      </div>
+
+      <button id="printBtn" class="btn" disabled>Print</button>
+      <div id="printMessage"></div>
+    </div>
+  </section>
+
+  <section class="panel" id="previewPanel">
+    <div id="previewEmpty">Upload a file to preview it here.</div>
+    <iframe id="previewFrame" style="display:none;"></iframe>
+    <img id="previewImage" style="display:none;">
+  </section>
+</main>
+
+<script>
+(function () {
+  const AUTH_KEY = "ps_auth"; // base64("username:password") in localStorage
+
+  const loginForm = document.getElementById("loginForm");
+  const loginUser = document.getElementById("loginUser");
+  const loginPass = document.getElementById("loginPass");
+  const loginError = document.getElementById("loginError");
+  const userBar = document.getElementById("userBar");
+  const whoami = document.getElementById("whoami");
+  const logoutBtn = document.getElementById("logoutBtn");
+  const app = document.getElementById("app");
+
+  const dropzone = document.getElementById("dropzone");
+  const fileInput = document.getElementById("fileInput");
+  const fileListEl = document.getElementById("fileList");
+  const filterProcessed = document.getElementById("filterProcessed");
+  const filterFrom = document.getElementById("filterFrom");
+  const filterTo = document.getElementById("filterTo");
+
+  const rotateLeftBtn = document.getElementById("rotateLeft");
+  const rotateRightBtn = document.getElementById("rotateRight");
+  const paperSelect = document.getElementById("paperSelect");
+  const copiesInput = document.getElementById("copiesInput");
+  const printBtn = document.getElementById("printBtn");
+  const printMessage = document.getElementById("printMessage");
+
+  const previewEmpty = document.getElementById("previewEmpty");
+  const previewFrame = document.getElementById("previewFrame");
+  const previewImage = document.getElementById("previewImage");
+
+  const statusDot = document.getElementById("statusDot");
+  const statusText = document.getElementById("statusText");
+
+  let files = [];          // {id, filename, type}
+  let selectedFile = null; // one of the above
+  let rotation = 0;
+  let statusTimer = null;
+  let fileListTimer = null;
+
+  // ---------- auth helpers ----------
+
+  function getAuth() {
+    return localStorage.getItem(AUTH_KEY);
+  }
+
+  function authHeaders() {
+    const a = getAuth();
+    return a ? { "Authorization": "Basic " + a } : {};
+  }
+
+  function authQuery() {
+    const a = getAuth();
+    return a ? ("?auth=" + encodeURIComponent(a)) : "";
+  }
+
+  // Best-effort extraction of an error message from a failed response.
+  // Server errors (5xx) get a "contact administrator" hint appended, since
+  // at that point there's nothing the user themself can do about it (e.g.
+  // the server hit a filesystem permission error on uploads/ - see
+  // SETUP.md's "Permission denied" section).
+  async function extractError(res, fallback) {
+    let message = fallback || `Request failed (HTTP ${res.status})`;
+    try {
+      const data = await res.json();
+      if (data && data.error) message = data.error;
+    } catch (err) { /* body wasn't JSON */ }
+    if (res.status >= 500) message += " Please contact Administrator.";
+    return message;
+  }
+
+  async function tryLogin(username, password) {
+    const token = btoa(username + ":" + password);
+    const res = await fetch("/api/login", {
+      method: "POST",
+      headers: { "Authorization": "Basic " + token },
+    });
+    if (!res.ok) {
+      const message = res.status >= 500
+        ? await extractError(res, "Login failed")
+        : "Invalid username or password";
+      return { error: message };
+    }
+    const data = await res.json();
+    return { token, username: data.username };
+  }
+
+  function showApp(username) {
+    loginForm.style.display = "none";
+    userBar.style.display = "flex";
+    whoami.textContent = username;
+    app.classList.add("visible");
+    startStatusPolling();
+    startFileListPolling();
+  }
+
+  function showLogin(message) {
+    loginForm.style.display = "flex";
+    userBar.style.display = "none";
+    app.classList.remove("visible");
+    stopStatusPolling();
+    stopFileListPolling();
+    if (message) loginError.textContent = message;
+  }
+
+  loginForm.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    loginError.textContent = "";
+    const u = loginUser.value.trim();
+    const p = loginPass.value;
+    if (!u || !p) return;
+    const result = await tryLogin(u, p);
+    if (result.error) {
+      loginError.textContent = result.error;
+      return;
+    }
+    localStorage.setItem(AUTH_KEY, result.token);
+    loginPass.value = "";
+    showApp(result.username);
+  });
+
+  logoutBtn.addEventListener("click", () => {
+    localStorage.removeItem(AUTH_KEY);
+    showLogin();
+  });
+
+  // On load: if we have stored credentials, verify them silently.
+  (async function init() {
+    const stored = getAuth();
+    if (!stored) { showLogin(); return; }
+    try {
+      const decoded = atob(stored);
+      const [u] = decoded.split(":");
+      const res = await fetch("/api/login", {
+        method: "POST",
+        headers: { "Authorization": "Basic " + stored },
+      });
+      if (res.ok) {
+        showApp(u);
+      } else if (res.status >= 500) {
+        // Server-side problem, not a bad credential - keep the stored
+        // credentials and let the user retry instead of logging them out.
+        showLogin(await extractError(res, "Could not reach server"));
+      } else {
+        localStorage.removeItem(AUTH_KEY);
+        showLogin("Session expired, please log in again");
+      }
+    } catch (err) {
+      showLogin("Could not reach server");
+    }
+  })();
+
+  // ---------- upload / drag & drop ----------
+
+  dropzone.addEventListener("click", () => fileInput.click());
+
+  ["dragenter", "dragover"].forEach(evt =>
+    dropzone.addEventListener(evt, (e) => {
+      e.preventDefault();
+      dropzone.classList.add("dragover");
+    })
+  );
+  ["dragleave", "drop"].forEach(evt =>
+    dropzone.addEventListener(evt, (e) => {
+      e.preventDefault();
+      dropzone.classList.remove("dragover");
+    })
+  );
+  dropzone.addEventListener("drop", (e) => {
+    const dropped = e.dataTransfer.files;
+    if (dropped && dropped.length) uploadFile(dropped[0]);
+  });
+  fileInput.addEventListener("change", () => {
+    if (fileInput.files.length) uploadFile(fileInput.files[0]);
+    fileInput.value = "";
+  });
+
+  async function uploadFile(file) {
+    printMessage.textContent = "";
+    const form = new FormData();
+    form.append("file", file);
+    try {
+      const res = await fetch("/api/upload", {
+        method: "POST",
+        headers: authHeaders(),
+        body: form,
+      });
+      if (!res.ok) {
+        printMessage.className = "err";
+        printMessage.textContent = await extractError(res, "Upload failed");
+        return;
+      }
+      const data = await res.json();
+      files.unshift(data);
+      renderFileList();
+      selectFile(data);
+    } catch (err) {
+      printMessage.className = "err";
+      printMessage.textContent = "Upload failed: " + err;
+    }
+  }
+
+  async function refreshFileList() {
+    try {
+      const res = await fetch("/api/files", { headers: authHeaders() });
+      if (!res.ok) return;
+      files = await res.json();
+      if (selectedFile && !files.some((f) => f.id === selectedFile.id)) {
+        selectFile(null);
+        return;
+      }
+      renderFileList();
+    } catch (err) { /* ignore */ }
+  }
+
+  function matchesFilters(f) {
+    const wantProcessed = filterProcessed.value;
+    if (wantProcessed === "processed" && !f.processed) return false;
+    if (wantProcessed === "unprocessed" && f.processed) return false;
+
+    if (f.created_at) {
+      const created = f.created_at.slice(0, 10); // YYYY-MM-DD
+      if (filterFrom.value && created < filterFrom.value) return false;
+      if (filterTo.value && created > filterTo.value) return false;
+    }
+    return true;
+  }
+
+  function renderFileList() {
+    fileListEl.innerHTML = "";
+    files.filter(matchesFilters).forEach((f) => {
+      const el = document.createElement("div");
+      el.className = "file-item" + (selectedFile && selectedFile.id === f.id ? " selected" : "");
+
+      const info = document.createElement("div");
+      info.className = "info";
+      info.addEventListener("click", () => selectFile(f));
+
+      const nameEl = document.createElement("div");
+      nameEl.className = "name";
+      nameEl.textContent = f.filename;
+      info.appendChild(nameEl);
+
+      if (f.stored_name) {
+        const storedEl = document.createElement("div");
+        storedEl.className = "stored";
+        storedEl.textContent = f.stored_name;
+        info.appendChild(storedEl);
+      }
+
+      const right = document.createElement("div");
+      right.className = "meta-right";
+
+      const typeEl = document.createElement("span");
+      typeEl.className = "type";
+      typeEl.textContent = f.type;
+      right.appendChild(typeEl);
+
+      const badge = document.createElement("span");
+      badge.className = "badge " + (f.processed ? "processed" : "unprocessed");
+      badge.textContent = f.processed ? "printed" : "not printed";
+      right.appendChild(badge);
+
+      const hideBtn = document.createElement("button");
+      hideBtn.className = "icon-btn";
+      hideBtn.type = "button";
+      hideBtn.title = "Hide file";
+      hideBtn.textContent = "🙈";
+      hideBtn.addEventListener("click", (e) => { e.stopPropagation(); hideFile(f); });
+      right.appendChild(hideBtn);
+
+      const deleteBtn = document.createElement("button");
+      deleteBtn.className = "icon-btn danger";
+      deleteBtn.type = "button";
+      deleteBtn.title = "Delete file";
+      deleteBtn.textContent = "🗑";
+      deleteBtn.addEventListener("click", (e) => { e.stopPropagation(); deleteFile(f); });
+      right.appendChild(deleteBtn);
+
+      el.appendChild(info);
+      el.appendChild(right);
+      fileListEl.appendChild(el);
+    });
+  }
+
+  async function hideFile(f) {
+    if (!confirm(`Hide "${f.filename}"? It will no longer be shown here.`)) return;
+    try {
+      const res = await fetch(`/api/file/${f.id}/hide`, { method: "POST", headers: authHeaders() });
+      if (!res.ok) {
+        alert(await extractError(res, "Could not hide file"));
+        return;
+      }
+      files = files.filter((x) => x.id !== f.id);
+      if (selectedFile && selectedFile.id === f.id) selectFile(null);
+      renderFileList();
+    } catch (err) {
+      alert("Could not hide file: " + err);
+    }
+  }
+
+  async function deleteFile(f) {
+    if (!confirm(`Delete "${f.filename}"? This cannot be undone.`)) return;
+    try {
+      const res = await fetch(`/api/file/${f.id}`, { method: "DELETE", headers: authHeaders() });
+      if (!res.ok) {
+        alert(await extractError(res, "Could not delete file"));
+        return;
+      }
+      files = files.filter((x) => x.id !== f.id);
+      if (selectedFile && selectedFile.id === f.id) selectFile(null);
+      renderFileList();
+    } catch (err) {
+      alert("Could not delete file: " + err);
+    }
+  }
+
+  filterProcessed.addEventListener("change", renderFileList);
+  filterFrom.addEventListener("change", renderFileList);
+  filterTo.addEventListener("change", renderFileList);
+
+  // ---------- preview + rotation ----------
+
+  function selectFile(f) {
+    selectedFile = f;
+    rotation = 0;
+    printBtn.disabled = !f;
+    printMessage.textContent = "";
+    renderFileList();
+    renderPreview();
+  }
+
+  function renderPreview() {
+    previewEmpty.style.display = "none";
+    previewFrame.style.display = "none";
+    previewImage.style.display = "none";
+
+    if (!selectedFile) {
+      previewEmpty.style.display = "block";
+      return;
+    }
+
+    const src = `/api/file/${selectedFile.id}${authQuery()}`;
+    const transform = `rotate(${rotation}deg)`;
+
+    if (selectedFile.type === "pdf") {
+      previewFrame.src = src;
+      previewFrame.style.display = "block";
+      previewFrame.style.transform = transform;
+    } else if (["png", "jpg", "jpeg"].includes(selectedFile.type)) {
+      previewImage.src = src;
+      previewImage.style.display = "inline-block";
+      previewImage.style.transform = transform;
+    } else {
+      previewEmpty.textContent = "No preview available for this file type.";
+      previewEmpty.style.display = "block";
+    }
+  }
+
+  rotateLeftBtn.addEventListener("click", () => {
+    rotation = (rotation - 90 + 360) % 360;
+    renderPreview();
+  });
+  rotateRightBtn.addEventListener("click", () => {
+    rotation = (rotation + 90) % 360;
+    renderPreview();
+  });
+
+  // ---------- print ----------
+
+  printBtn.addEventListener("click", async () => {
+    if (!selectedFile) return;
+    printBtn.disabled = true;
+    printMessage.className = "";
+    printMessage.textContent = "Sending to printer…";
+
+    try {
+      const res = await fetch("/api/print", {
+        method: "POST",
+        headers: Object.assign({ "Content-Type": "application/json" }, authHeaders()),
+        body: JSON.stringify({
+          id: selectedFile.id,
+          rotation: rotation,
+          paper: paperSelect.value,
+          copies: parseInt(copiesInput.value, 10) || 1,
+        }),
+      });
+      if (!res.ok) {
+        printMessage.className = "err";
+        printMessage.textContent = await extractError(res, "Print failed");
+      } else {
+        const data = await res.json();
+        printMessage.className = "ok";
+        printMessage.textContent = "Sent to printer (" + (data.job || "job submitted") + ")";
+      }
+    } catch (err) {
+      printMessage.className = "err";
+      printMessage.textContent = "Print failed: " + err;
+    } finally {
+      printBtn.disabled = false;
+    }
+  });
+
+  // ---------- printer status polling ----------
+
+  async function pollStatus() {
+    try {
+      const res = await fetch("/api/printer-status", { headers: authHeaders() });
+      if (!res.ok) {
+        setStatus("red", await extractError(res, `Status check failed (HTTP ${res.status})`));
+        return;
+      }
+      const data = await res.json();
+      if (!data || !data.color) {
+        setStatus("red", "Unexpected status response");
+        console.error("printer-status returned unexpected payload:", data);
+        return;
+      }
+      setStatus(data.color, data.message || "");
+    } catch (err) {
+      setStatus("red", "No connection with server");
+      console.error("printer-status fetch threw:", err);
+    }
+  }
+
+  function setStatus(color, message) {
+    statusDot.className = "dot " + (color || "");
+    statusText.textContent = message || "Unknown";
+    statusText.title = message || "";
+  }
+
+  function startStatusPolling() {
+    pollStatus();
+    stopStatusPolling();
+    statusTimer = setInterval(pollStatus, 5000);
+  }
+  function stopStatusPolling() {
+    if (statusTimer) clearInterval(statusTimer);
+    statusTimer = null;
+  }
+
+  // ---------- own file list polling (meta file) ----------
+
+  function startFileListPolling() {
+    refreshFileList();
+    stopFileListPolling();
+    fileListTimer = setInterval(refreshFileList, 5000);
+  }
+  function stopFileListPolling() {
+    if (fileListTimer) clearInterval(fileListTimer);
+    fileListTimer = null;
+  }
+})();
+</script>
+</body>
+</html>
